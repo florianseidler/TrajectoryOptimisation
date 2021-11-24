@@ -14,43 +14,42 @@ from jax import grad
 # QUESTIONS: integrationconstant, numerical, boundaries
 
 # TODO: check if costfunction is convex
-# TODO: programm costfunction as integration of torquefunction
 # TODO: boundaries t0=starttime, tf=endtime, x0=startplace, xf=endplace
 
-# IDEA: Use integrationgaussquad5 to minimize torquefunction
+# IDEA: Use integrationgaussquad5 to minimize costfunction
 
 
 def nlpsolver(order, amplitude, offset, constantOfIneqConstraint):
 
     ineqvar = 0                                                                     # 4. constraint passed
     kkt_x = thirdconstraintparameter(order, amplitude, offset)
-    if (checkinequalityconstraint(kktpoint, constantOfIneqConstraint) == 1):        # 2. constraint
+    if (checkinequalityconstraint(kkt_x, constantOfIneqConstraint) == 1):        # 2. constraint
         return kkt_x
 
     kkt_x = -constantOfIneqConstraint
     ineqvar = thirdconstraintineqvar(kkt_x, order, amplitude, offset)
     if (ineqvar >= 1):                                                              # 4. constraint
-        if (checkinequalityconstraint(kktpoint, constantOfIneqConstraint) == 1):    # 2. constraint
+        if (checkinequalityconstraint(kkt_x, constantOfIneqConstraint) == 1):    # 2. constraint
             return kkt_x
 
 
 ### ----- subfunctions ----- ###
 
 
-def torquefunction(x, exp, ampli, offs):
+def costfunction(x, exp, ampli, offs):
     result = 0
     for i in range(exp, 0, -1):
-        result += ampli[order - i] * x**i
+        result += ampli[exp - i] * x**i
     result += offs
     return result
 
 
-def nullfunction(exp, ampli, offs):                                                 # Newton’s Method to approx zero
+def newtonapprox(exp, ampli, offs):                                                 # approximate zero
     iterations = 10
     initialguess = 1.4
-    approximation = initialguess - (torquefunction(initialguess, exp, ampli, offs) / grad(torquefunction)(initialguess, exp, ampli, offs))
+    approximation = initialguess - (grad(costfunction)(initialguess, exp, ampli, offs) / grad(grad(costfunction))(initialguess, exp, ampli, offs))
     for i in range(iterations):
-        approximation = approximation - (torquefunction(approximation, exp, ampli, offs) / grad(torquefunction)(approximation, exp, ampli, offs))
+        approximation = approximation - (grad(costfunction)(approximation, exp, ampli, offs) / grad(grad(costfunction))(approximation, exp, ampli, offs))
     return approximation
 
 
@@ -62,11 +61,11 @@ def integrationgaussquad5(fct, lowerlimit, upperlimit):                         
 
 
 def thirdconstraintparameter(ampli, exp, offs):
-    return nullfunction(ampli, exp, offs)                                           # grad(f) + 0 = 0 = torquefct
+    return newtonapprox(ampli, exp, offs)                                           # grad(f) + 0 = 0 = torquefct
 
 
 def thirdconstraintineqvar(parameter, exp, ampli, offs):                            # calculate value for ineqvar
-    return jnp.linalg.solve(1, grad(torquefunction)(parameter, exp, ampli, offs))
+    return jnp.linalg.solve(1, grad(grad(costfunction))(parameter, exp, ampli, offs))
 
 
 def checkinequalityconstraint(kktpoint, constOfIneqConstraint):                     # 2. constraint function
