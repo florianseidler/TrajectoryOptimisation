@@ -1,6 +1,6 @@
 import numpy as np
 import jax.numpy as jnp
-from jax import grad, hessian
+from jax import grad, hessian, jacfwd
 
 ########################################################
 # TODOS:
@@ -38,7 +38,7 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
 
     if number_equality_constraints or number_inequality_constraints:
         if input_lagrange_multipliers is None:
-            lagrange_multipliers = init_lagrange_multipliers(weights, number_weights, number_equality_constraints,
+            lagrange_multipliers = init_lagrange_multipliers(objective_function, weights, number_weights, number_equality_constraints,
                                                              number_inequality_constraints, equality_constraints,
                                                              inequality_constraints)
             if number_inequality_constraints and number_equality_constraints:
@@ -97,10 +97,19 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
             # compute primal-dual direction (Nocedal & Wright 19.12)
             gradient = gradient_values(objective_function, weights, slacks, lagrange_multipliers)
             # regularize hessian to maintain matrix inertia (Nocedal & Wright 19.25)
+            #### TODO: hessian!
+            #weights_slacks_and_lagrange_multipliers = np.concatenate(weights, slacks, lagrange_multipliers)
+            '''
             hessian = regularize_hessian(hessian(objective_function)(weights, slacks, lagrange_multipliers),
                         number_weights, number_equality_constraints, number_inequality_constraints,
                         diagonal_shift_val, init_diagonal_shift_val, armijo_val, power_val, barrier_val)
+            '''
             # TODO: nachprüfen, ob das so klappt
+            hessian = regularize_hessian(symmetric_hessian_of_lagrangrian(objective_function, weights, slacks,
+                        lagrange_multipliers, number_weights, equality_constraints, inequality_constraints, \
+                        number_equality_constraints, number_inequality_constraints), \
+                        number_weights, number_equality_constraints, number_inequality_constraints, \
+                        diagonal_shift_val, init_diagonal_shift_val, armijo_val, power_val, barrier_val)
             # calculate search_direction
             search_direction = jnp.linalg.solve(hessian_matrix, gradient.reshape((gradient.size, 1))) \
                 .reshape((gradient.size,))  # reshape gradient and result
@@ -250,19 +259,14 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
     return weights, slacks, lagrange_multipliers, function_values, kkt_weights, kkt_slacks, kkt_equality_lagrange_multipliers, kkt_inequality_lagrange_multipliers
 
 
-def init_lagrange_multipliers(weights, number_weights, number_equality_constraints=0, number_inequality_constraints=0,
+def init_lagrange_multipliers(objective_function, weights, number_weights, number_equality_constraints=0, number_inequality_constraints=0,
                               equality_constraints=None, inequality_constraints=None):
-    # TODO: eliminate comments
-    # if number_equality_constraints or number_inequality_constraints:
+
     return np.dot(np.linalg.pinv(
-        jacobian_objective_function(weights, number_weights, equality_constraints, inequality_constraints,
+        jacobian_of_constraints(weights, number_weights, equality_constraints, inequality_constraints,
                                     number_equality_constraints, number_inequality_constraints)[:number_weights, :]),
                   grad(objective_function, 0)(weights).reshape((number_weights, 1))).reshape(
         (number_equality_constraints + number_inequality_constraints,))
-
-
-# else: return T.dot(pinv(jacobian_objective_function[:number_weights, :]), df.reshape((number_weights, 1))).reshape((number_equality_constraints + number_inequality_constraints,))
-# else really needed?
 
 
 def gradient(function_to_derive, number_input_arg=1):
@@ -272,7 +276,7 @@ def gradient(function_to_derive, number_input_arg=1):
     return gradient_list
 
 
-def gradient_values(objective_function, weights, slacks, lagrange_multipliers):
+def gradient_values_old(objective_function, weights, slacks, lagrange_multipliers):
     # objective_function input: weights[0], ..., weights[-1], slacks[0], ..., slacks[-1], lagrange_multipliers[0], ...
     number_input_arg = np.size(weights) + np.size(slacks) + np.size(lagrange_multipliers)  # get number of variables
     derivatives_of_function = gradient(objective_function, number_input_arg)  # derive function to every variable
@@ -280,6 +284,21 @@ def gradient_values(objective_function, weights, slacks, lagrange_multipliers):
     for iterate_variables in np.arange(number_input_arg):  # put variables in every derivative
         results.append(derivatives_of_function[iterate_variables](weights, slacks, lagrange_multipliers))
     return np.array(results)
+
+
+def gradient_values(objective_function, weights, slacks, lagrange_multipliers):
+    if(np.size(slacks) != 0 and np.size(lagrange_multipliers) != 0):
+        number_input_arg = 3
+    elif(np.size(slacks) != 0 or np.size(lagrange_multipliers) != 0):
+        number_input_arg = 2
+    else:
+        number_input_arg = 1
+    number_variables = np.size(weights) + np.size(slacks) + np.size(lagrange_multipliers)
+    derivatives_of_function = gradient(objective_function, number_input_arg)  # derive function to every variable
+    results = []  # prepare empty list
+    for iterate_variables in np.arange(number_input_arg):  # put variables in every derivative
+        results.append(derivatives_of_function[iterate_variables](weights, slacks, lagrange_multipliers))
+    return np.array(results).reshape(number_variables, 1)
 
 
 def KKT(objective_function, weights, slacks, lagrange_multipliers, number_inequality_constraints,
@@ -300,7 +319,7 @@ def KKT(objective_function, weights, slacks, lagrange_multipliers, number_inequa
 
     if number_inequality_constraints and number_equality_constraints:
         kkt_weights = kkt_results[:number_variables]
-        kkt_slacks = kkt_results[number_variables:(number_variables + number_slacks)] * slacks
+        kkt_slacks = kkt_results[number_variables:(number_variables + number_slacks)] * slacks.reshape(number_slacks, 1)
         kkt_equality_lagrange_multipliers = kkt_results[(number_variables + number_slacks):(
                     number_variables + number_slacks + number_equality_lagrange_multipliers)]
         kkt_inequality_lagrange_multipliers = kkt_results[(
@@ -352,9 +371,9 @@ def regularize_hessian(hessian_matrix, number_weights, number_equality_constrain
         hessian_matrix[:number_weights, :number_weights] += diagonal_shift_val * np.eye(number_weights)
         eigenvalues, eigenvectors = np.linalg.eig(hessian_matrix)
         while (number_equality_constraints + number_inequality_constraints) != np.sum(eigenvalues < -minimal_step):
-            Hc[:number_weights, :number_weights] -= diagonal_shift_val * np.eye(number_weights)
+            hessian_matrix[:number_weights, :number_weights] -= diagonal_shift_val * np.eye(number_weights)
             diagonal_shift_val *= 10.0
-            Hc[:number_weights, :number_weights] += diagonal_shift_val * np.eye(number_weights)
+            hessian_matrix[:number_weights, :number_weights] += diagonal_shift_val * np.eye(number_weights)
             eigenvalues, eigenvectors = np.linalg.eig(hessian_matrix)
 
     return hessian_matrix
@@ -422,30 +441,29 @@ def merit_function(objective_function, weights, slacks, merit_function_parameter
         return objective_function(weights)
 
 
-def jacobian_objective_function(weights, number_weights, equality_constraints=None, inequality_constraints=None,
+def jacobian_of_constraints(weights, number_weights, equality_constraints=None, inequality_constraints=None,
                                 number_equality_constraints=0, number_inequality_constraints=0):
     # all reshapes necessary? TODO
     if number_equality_constraints and number_inequality_constraints:
         # TODO: jacfwd einseitig?
-        jacobian_top = np.concatenate([ \
-            jax.jacfwd(equality_constraints)(weights) \
-                .reshape(number_equality_constraints,number_weights) \
+        jacobian_top = np.concatenate([jacfwd(equality_constraints)(weights) \
+                .reshape(number_equality_constraints,number_weights).T \
                 .reshape(number_weights, number_equality_constraints) \
                 .reshape((number_weights, number_equality_constraints)), \
-            jax.jacfwd(inequality_constraints)(weights) \
-                .reshape(number_inequality_constraints, number_weights) \
+            jacfwd(inequality_constraints)(weights) \
+                .reshape(number_inequality_constraints, number_weights).T \
                 .reshape(number_weights,number_inequality_constraints) \
                 .reshape((number_weights, number_inequality_constraints))], axis=1)
         jacobian_bottom = np.concatenate([np.zeros((number_inequality_constraints, number_equality_constraints)),
                                           -np.eye(number_inequality_constraints)], axis=1)
         return np.concatenate([jacobian_top, jacobian_bottom], axis=0)
     elif number_equality_constraints:
-        return jax.jacfwd(equality_constraints)(weights) \
+        return jacfwd(equality_constraints)(weights) \
             .reshape(number_equality_constraints, number_weights) \
             .reshape(number_weights, number_equality_constraints) \
             .reshape((number_weights, number_equality_constraints))
     elif number_inequality_constraints:
-        return np.concatenate([jax.jacfwd(inequality_constraints)(weights) \
+        return np.concatenate([jacfwd(inequality_constraints)(weights) \
                               .reshape(number_inequality_constraints,number_weights) \
                               .reshape(number_weights, number_inequality_constraints) \
                               .reshape((number_weights, number_inequality_constraints)), \
@@ -522,19 +540,19 @@ def search(weights_0, slacks_0, lagrange_multipliers_0, search_direction, alpha_
                                                      number_equality_constraints, number_inequality_constraints)
             if np.sum(np.abs(correction_new)) > np.sum(np.abs(correction_old)):
                 # infeasibility has increased, attempt to correct
-                jacobian_matrix_objective_function = jacobian_objective_function(weights, number_weights,
+                jacobian_matrix_of_constraints = jacobian_of_constraints(weights, number_weights,
                                                                                  equality_constraints,
                                                                                  inequality_constraints,
                                                                                  number_equality_constraints,
-                                                                                 number_inequality_constraints)
+                                                                                 number_inequality_constraints).T
                 try:
-                    feasibility_restoration_direction = -jnp.linalg.solve(jacobian_matrix_objective_function, \
+                    feasibility_restoration_direction = -jnp.linalg.solve(jacobian_matrix_of_constraints, \
                                          correction_new.reshape((number_weights + number_inequality_constraints, 1))) \
                                             .reshape((number_weights + number_inequality_constraints,))
                 except:
                     # if the Jacobian is not invertible, find the minimum norm solution instead
                     feasibility_restoration_direction = - \
-                    np.linalg.lstsq(jacobian_matrix_objective_function, correction_new, rcond=None)[0]  #jnp or np
+                    np.linalg.lstsq(jacobian_matrix_of_constraints, correction_new, rcond=None)[0]  #jnp or np
                 if (merit_function(objective_function, weights_0 + alpha_smax * search_direction_weights \
                                 + feasibility_restoration_direction[:number_weights], slacks_0 \
                                 + alpha_smax * search_direction_slacks + feasibility_restoration_direction[number_weights:], \
@@ -596,20 +614,20 @@ def search(weights_0, slacks_0, lagrange_multipliers_0, search_direction, alpha_
                                                          number_equality_constraints, number_inequality_constraints)
                 if np.sum(np.abs(correction_new)) > np.sum(np.abs(correction_old)):
                     # infeasibility has increased, attempt to correct
-                    jacobian_matrix_objective_function = jacobian_objective_function(weights, number_weights,
+                    jacobian_matrix_of_constraints = jacobian_of_constraints(weights, number_weights,
                                                                                      equality_constraints,
                                                                                      inequality_constraints,
                                                                                      number_equality_constraints,
-                                                                                     number_inequality_constraints)
+                                                                                     number_inequality_constraints).T
                     try:
                         # calculate a feasibility restoration direction
-                        feasibility_restoration_direction = -jnp.linalg.solve(jacobian_matrix_objective_function, \
+                        feasibility_restoration_direction = -jnp.linalg.solve(jacobian_matrix_of_constraints, \
                                     correction_new.reshape((number_weights, number_inequality_constraints, 1))) \
                                     .reshape((number_weights + number_inequality_constraints,))
                     except:
                         # if the Jacobian is not invertible, find the minimum norm solution instead
                         feasibility_restoration_direction = - \
-                        np.linalg.lstsq(jacobian_matrix_objective_function, correction_new, rcond=None)[0]
+                        np.linalg.lstsq(jacobian_matrix_of_constraints, correction_new, rcond=None)[0]
                     if merit_function(objective_function,
                                 weights_0 + alpha_smax * search_direction_weights + feasibility_restoration_direction,
                                 slacks_0, merit_function_parameter, equality_constraints, inequality_constraints, \
@@ -650,3 +668,76 @@ def search(weights_0, slacks_0, lagrange_multipliers_0, search_direction, alpha_
         lagrange_multipliers = np.copy(lagrange_multipliers_0)
     # return updated weights, slacks, and multipliers
     return weights, slacks, lagrange_multipliers, optimization_return_signal
+
+
+def equality_constraints_with_lagrange_multipliers(equality_constraints, weights, lagrange_multipliers, number_equality_constraints=0):
+    return np.sum(equality_constraints(weights) * lagrange_multipliers[:number_equality_constraints])
+
+
+def inequality_constraints_with_lagrange_multipliers(inequality_constraints, weights, lagrange_multipliers, number_equality_constraints=0):
+    return np.sum(inequality_constraints(weights) * lagrange_multipliers[number_equality_constraints:])
+
+
+def hessian_of_lagrangian(objective_function, weights, slacks, lagrange_multipliers, equality_constraints=None, \
+        inequality_constraints=None, number_equality_constraints=0, number_inequality_constraints=0):
+
+    if number_equality_constraints and number_inequality_constraints:
+        return hessian(objective_function)(weights) - \
+               hessian(equality_constraints_with_lagrange_multipliers)(equality_constraints, \
+                    weights, lagrange_multipliers, number_equality_constraints) - \
+               hessian(inequality_constraints_with_lagrange_multipliers)(inequality_constraints, \
+                    weights, lagrange_multipliers, number_equality_constraints)
+
+    elif number_equality_constraints:
+        return hessian(objective_function)(weights) - hessian(equality_constraints)(weights, lagrange_multipliers)
+
+    elif number_inequality_constraints:
+        return hessian(objective_function)(weights) - hessian(equality_constraints)(weights, lagrange_multipliers)
+
+    else:
+        return hessian(objective_function)(weights)
+
+
+def subfct_hessian_upper_left(objective_function, weights, slacks, lagrange_multipliers, number_weights, \
+            equality_constraints=None, inequality_constraints=None, number_equality_constraints=0, \
+            number_inequality_constraints=0):
+    
+    if inequality_constraints:
+        return np.concatenate([ \
+            np.concatenate([np.triu(hessian_of_lagrangian(objective_function, weights, slacks, lagrange_multipliers, \
+                equality_constraints, inequality_constraints, number_equality_constraints, number_inequality_constraints)), \
+                np.zeros((number_weights, number_inequality_constraints))], axis=1),
+            np.concatenate([np.zeros((number_inequality_constraints, number_weights)), \
+                np.diag(lagrange_multipliers[number_equality_constraints:] / (slacks + minimal_step))], axis=1)], axis=0)
+    else:
+        return np.triu(hessian_of_lagrangian(objective_function, weights, slacks, lagrange_multipliers, \
+                equality_constraints, inequality_constraints, number_equality_constraints, number_inequality_constraints))
+
+
+def symmetric_hessian_of_lagrangrian(objective_function, weights, slacks, lagrange_multipliers, number_weights, \
+            equality_constraints=None, inequality_constraints=None, number_equality_constraints=0, \
+            number_inequality_constraints=0):
+
+    if number_equality_constraints or inequality_constraints:
+
+        hessian_upper_right = jacobian_of_constraints(weights, number_weights, equality_constraints, \
+                inequality_constraints, number_equality_constraints, number_inequality_constraints)
+
+        hessian_upper_part = np.concatenate([
+                subfct_hessian_upper_left(objective_function, weights, slacks, \
+                    lagrange_multipliers, number_weights, equality_constraints, inequality_constraints, \
+                    number_equality_constraints, number_inequality_constraints), \
+                hessian_upper_right], axis=1)
+
+        hessian_upper_part_filled = np.concatenate([ \
+                hessian_upper_part, \
+                np.zeros((number_weights + number_inequality_constraints, \
+                    number_weights + 2 * number_inequality_constraints + number_equality_constraints))])
+
+        return hessian_upper_part_filled + np.triu(hessian_upper_part_filled, k=1).T
+
+    else:
+        hessian_without_constraints_part = hessian_of_lagrangian(objective_function, weights, slacks, lagrange_multipliers, \
+                equality_constraints, inequality_constraints, number_equality_constraints, number_inequality_constraints)
+
+        return hessian_without_constraints_part + np.triu(hessian_without_constraints_part, k=1).T
