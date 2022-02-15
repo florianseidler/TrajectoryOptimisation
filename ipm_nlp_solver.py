@@ -10,28 +10,58 @@ from jax import grad, hessian, jacfwd
 # #compile()
 
 
+def cost_function(weights):
+    return weights[0]**2 + 2 * weights[1]**2 + 2 * weights[0] + 8 * weights[1]
+
+
+def inequality_constraints_1(weights):
+    return weights[0] + 2*weights[1] - 10
+
+
+def inequality_constraints_2(weights):
+    return weights[0]
+
+
+def inequality_constraints_3(weights):
+    return weights[1]
+
+
+equality_constraints = []
+inequality_constraints = [inequality_constraints_1, inequality_constraints_2, inequality_constraints_3]
+
+
 # tunable constants
 verbosity = 1  # needed?
 backtracking_line_search_parameter = 0.995
 armijo_val = 1.0E-4
 weight_precision_tolerance = np.finfo(np.float32).eps ### DARF NICHT 0 sein!!
 convergence_tolerance_cost_function = 0.5  # ?
-#power_val = 0.4
-#barrier_val = 0.2
-#init_diagonal_shift_val=0.5
-num_inner_iterations = 20
-num_outer_iterations = 10
+power_val = 0.4
+barrier_val = 0.2
+init_diagonal_shift_val=0.5
+#num_inner_iterations = 20
+#num_outer_iterations = 10
 minimal_step = np.finfo(np.float32).eps
 barrier_initialization_parameter = 0.2
 diagonal_shift_val = 0.0
 kkt_tolerance = 0.1  # ?
-merit_function_initialization_parameter = np.float64(0.2)  # ?
+#merit_function_initialization_parameter = np.float64(10.0)
+update_factor_merit_function_parameter = 0.1
+merit_function_parameter = 10.0
+optimization_return_signal = 0
 #num_weights = np.size(weights)
 #num_equality_constraints = np.size(equality_constraints)
 #num_inequality_constraints = np.size(inequality_constraints)
 
 
-def solver(equality_constraints, inequality_constraints, weights, slacks=None, lagrange_multipliers=None):
+def solver(cost_function, equality_constraints, inequality_constraints, weights, slacks=None, input_lagrange_multipliers=None):
+    merit_function_initialization_parameter = np.float64(10.0)
+    num_inner_iterations = 20
+    num_outer_iterations = 10
+    #weights = np.array([])
+    #slacks = np.array([])
+    lagrange_multipliers = np.array([])
+
     num_weights = np.size(weights)
     num_equality_constraints = np.size(equality_constraints)
     num_inequality_constraints = np.size(inequality_constraints)
@@ -53,7 +83,7 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
             elif num_inequality_constraints:
                 lagrange_multipliers[lagrange_multipliers < np.float64(0.0)] = np.float64(kkt_tolerance)
         else:
-            lagrange_multipliers = lagrange_multipliers.astype(np.float64)
+            lagrange_multipliers = input_lagrange_multipliers.astype(np.float64)
     else:
         lagrange_multipliers = np.array([], dtype=np.float64)
         # return print("No optimization necessary without constraints")
@@ -77,7 +107,7 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
     optimization_return_signal = 0
 
     # calculation: Nocedal & Wright Algorithm 19.2
-    for outer_iteration_variable in num_outer_iterations:  # adjusting barrier parameter
+    for outer_iteration_variable in range(num_outer_iterations):  # adjusting barrier parameter
 
         # if current point converged to kkt_tolerance -> solution found
         if all([np.linalg.norm(kkt_weights) <= kkt_tolerance, np.linalg.norm(kkt_slacks) <= kkt_tolerance,
@@ -87,7 +117,7 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
             convergence_tolerance_KKT_converged = True
             break
 
-        for inner_iteration_variable in num_inner_iterations:
+        for inner_iteration_variable in range(num_inner_iterations):
             # check convergence to barrier tolerance precision using the KKT conditions; if True, break from the inner loop
             barrier_tolerance = np.max([kkt_tolerance, barrier_val])
             if all([np.linalg.norm(kkt_weights) <= barrier_tolerance, np.linalg.norm(kkt_slacks) <= barrier_tolerance,
@@ -105,20 +135,19 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
             hessian_matrix = regularize_hessian(hessian_numpy, num_weights, num_equality_constraints, num_inequality_constraints, \
                         diagonal_shift_val, init_diagonal_shift_val, armijo_val, power_val, barrier_val)
             # calculate search_direction
-            search_direction = jnp.linalg.solve(hessian_matrix, -gradient.reshape((gradient.size, 1))) \
-                .reshape((gradient.size,))  # reshape gradient and result
+            search_direction = np.array(jnp.linalg.solve(hessian_matrix, -gradient.reshape((gradient.size, 1))) \
+                .reshape((gradient.size,)))  # reshape gradient and result
 
             if num_inequality_constraints or num_equality_constraints:
                 # change sign definition for the multipliers' search direction
-                search_direction[num_weights + num_inequality_constraints:] = \
-                    -search_direction[num_weights + num_inequality_constraints:]
+                search_direction[num_weights + num_inequality_constraints:] = -search_direction[num_weights + num_inequality_constraints:]
 
             if num_inequality_constraints or num_equality_constraints:
                 # update the merit function parameter, if necessary
                 if num_inequality_constraints:
-                    barrier_gradient = np.concatenate([grad(function_to_minimize)(weights), -barrier_val / (slacks + minimal_step)])
+                    barrier_gradient = np.concatenate([grad(cost_function)(weights), -barrier_val / (slacks + minimal_step)])
                 else:
-                    barrier_gradient = grad(function_to_minimize)(weights)
+                    barrier_gradient = grad(cost_function)(weights)
                 direction_gradient = np.dot(barrier_gradient, search_direction[:num_weights + num_inequality_constraints])
                 sum_weights_slacks = np.sum(np.abs(concatenate_constraints(weights, slacks, equality_constraints, inequality_constraints,
                                             num_equality_constraints, num_inequality_constraints)))
@@ -190,7 +219,7 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
             if optimization_return_signal == -2:  # a bad search direction was chosen, terminating
                 break
 
-            if inner >= num_inner_iterations - 1:
+            if inner_iteration_variable >= num_inner_iterations - 1:
                 if verbosity > 0 and num_inequality_constraints:
                     print('MAXIMUM INNER ITERATIONS EXCEEDED')
 
@@ -215,7 +244,7 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
             # a bad search direction was chosen, terminating
             break
 
-        if outer_iterations_num >= num_outer_iterations - 1:
+        if num_outer_iterations >= num_outer_iterations - 1:
             optimization_return_signal = -1
             if verbosity > 0:
                 if num_inequality_constraints:
@@ -252,8 +281,8 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
             msg.append('Converged to convergence_tolerance_cost_function tolerance')
         else:
             msg.append('Maximum iterations reached')
-            outer_iteration_num = num_outer_iterations
-            inner = 0
+            num_outer_iterations = num_outer_iterations
+            num_inner_iterations = 0
 
     # return solution weights, slacks, multipliers, cost, and KKT conditions
     return weights, slacks, lagrange_multipliers, function_values, kkt_weights, kkt_slacks, kkt_equality_lagrange_multipliers, kkt_inequality_lagrange_multipliers
@@ -262,6 +291,7 @@ def solver(equality_constraints, inequality_constraints, weights, slacks=None, l
 def equality_constraints_fct(weights, lagrange_multipliers):
     num_equality_constraints = np.size(equality_constraints)
     return_sum = 0
+    iter = 0
     for iter in range(num_equality_constraints):
         return_sum += equality_constraints[iter](weights) * lagrange_multipliers[iter]
     return return_sum
@@ -270,6 +300,7 @@ def equality_constraints_fct(weights, lagrange_multipliers):
 def inequality_constraints_fct(weights, slacks, lagrange_multipliers):
     num_inequality_constraints = np.size(inequality_constraints)
     num_equality_constraints = np.size(equality_constraints)
+    iter = 0
     return_sum = 0
     for iter in range(num_inequality_constraints):
         return_sum += (inequality_constraints[iter](weights) - slacks[iter]) * lagrange_multipliers[iter + num_equality_constraints]
@@ -552,6 +583,7 @@ def search(cost_function, weights_0, slacks_0, lagrange_multipliers_0, search_di
     """Backtracking line search to find a solution that leads to a smaller value of the Lagrangian within the confines
        of the maximum step length for the slack variables and Lagrange multipliers found using class function 'step'."""
     # extract search directions along weights, slacks, and multipliers
+    optimization_return_signal = 0
     search_direction_weights = search_direction[:num_weights]
     if num_inequality_constraints:
         search_direction_slacks = search_direction[num_weights:(num_weights + num_inequality_constraints)]
