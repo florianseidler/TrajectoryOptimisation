@@ -20,7 +20,7 @@ def hessian_approximation(obj_fct, weights, slacks, lagrange_multipliers):
     -------
     approximated_hessian: Hessian-matrix
     """
-
+    
     hessian_jnp = jit(hessian(obj_fct, [0, 1, 2]))(
         weights, slacks, lagrange_multipliers)
     upper_left = jnp.asarray(hessian_jnp[0][0])
@@ -35,9 +35,12 @@ def hessian_approximation(obj_fct, weights, slacks, lagrange_multipliers):
         middle = jnp.asarray(hessian_jnp[1][1])
         dimension_middle = jnp.asarray(middle).shape[0]
         middle_ = jnp.zeros((dimension_middle, dimension_middle))
+        lagrange_multipliers_index_offset = (jnp.size(lagrange_multipliers) -
+                                             jnp.size(slacks))
         for iter_middle in range(dimension_middle):  # approximation of hessian
             middle_ = middle_.at[iter_middle, iter_middle].add(
-                (lagrange_multipliers[iter_middle] / slacks[iter_middle]))
+                (lagrange_multipliers[lagrange_multipliers_index_offset +
+                                      iter_middle] / slacks[iter_middle]))
         upper_middle = jnp.asarray(hessian_jnp[0][1])
         middle_right = jnp.asarray(hessian_jnp[1][2])
         lower_middle = jnp.asarray(hessian_jnp[2][1])
@@ -45,7 +48,7 @@ def hessian_approximation(obj_fct, weights, slacks, lagrange_multipliers):
             [upper_left, upper_middle, -upper_right], axis=1)
         middle_left = jnp.asarray(hessian_jnp[1][0])
         middle_part = jnp.concatenate(
-            [middle_left, middle_, -middle_right], axis=1)
+            [middle_left, middle_, -middle_right], axis=1)## change
         lower_part = jnp.concatenate(
             [-lower_left, -lower_middle, lower_right], axis=1)
         approximated_hessian = jnp.concatenate(
@@ -111,16 +114,15 @@ def regularize_hessian(hessian_matrix, num_weights, num_equality_constraints=0,
         hessian_matrix.at[:num_weights, :num_weights].add(
             diagonal_shift_val * jnp.eye(num_weights))
         eigenvalues = jit(jnp.linalg.eigvalsh)(hessian_matrix)
-        print("num constraints: \n", num_constraints)
+
         while num_constraints != jit(jnp.sum)(eigenvalues < -minimal_step):
             hessian_matrix = hessian_matrix.at[:num_weights, :num_weights].add(
                 - diagonal_shift_val * jnp.eye(num_weights))
-            print(hessian_matrix)
+
             diagonal_shift_val *= 10.0
             hessian_matrix = hessian_matrix.at[:num_weights, :num_weights].add(
                 diagonal_shift_val * jnp.eye(num_weights))
-            print(hessian_matrix)
+
             eigenvalues = jit(jnp.linalg.eigvalsh)(hessian_matrix)
-            print("eigenvalues: \n", eigenvalues)
-        print("FINISHED")
+
     return hessian_matrix, diagonal_shift_val
