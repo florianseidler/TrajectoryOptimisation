@@ -20,7 +20,11 @@ def hessian_approximation(obj_fct, weights, slacks, lagrange_multipliers):
     -------
     approximated_hessian: Hessian-matrix
     """
-    
+    # ADDED
+    lagrange_multipliers_index_offset = (jnp.size(lagrange_multipliers) -
+                                         jnp.size(slacks))
+    #
+
     hessian_jnp = jit(hessian(obj_fct, [0, 1, 2]))(
         weights, slacks, lagrange_multipliers)
     upper_left = jnp.asarray(hessian_jnp[0][0])
@@ -35,8 +39,6 @@ def hessian_approximation(obj_fct, weights, slacks, lagrange_multipliers):
         middle = jnp.asarray(hessian_jnp[1][1])
         dimension_middle = jnp.asarray(middle).shape[0]
         middle_ = jnp.zeros((dimension_middle, dimension_middle))
-        lagrange_multipliers_index_offset = (jnp.size(lagrange_multipliers) -
-                                             jnp.size(slacks))
         for iter_middle in range(dimension_middle):  # approximation of hessian
             middle_ = middle_.at[iter_middle, iter_middle].add(
                 (lagrange_multipliers[lagrange_multipliers_index_offset +
