@@ -149,6 +149,7 @@ def update_alphas(weights_0, slacks_0, alpha_smax,
             ) > (merit_function_result + alpha_smax
                  * armijo_val * gradient_merit_function_result)
            and optimization_return_signal != -2):
+
         # backtracking line search
         if num_inequality_constraints:
             search_step = (jnp.sqrt(jnp.linalg.norm
