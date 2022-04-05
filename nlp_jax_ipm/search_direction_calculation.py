@@ -49,6 +49,7 @@ def calc_search_dir(objective_function, objective_function_with_barrier,
                            num_equality_constraints, num_inequality_constraints,
                            diagonal_shift_val, init_diagonal_shift_val,
                            armijo_val, power_val, barrier_val))
+
     # calculate search_direction
     gradient_transposed = - gradient.reshape((gradient.size, 1))
     search_direction = jit(jnp.linalg.solve)(
