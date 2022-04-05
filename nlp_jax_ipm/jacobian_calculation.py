@@ -56,16 +56,16 @@ def jacobian_of_constraints(weights, num_weights, equality_constraints=None,
         jacobian_constraints = jnp.zeros(
             (num_equality_constraints, num_weights))
         for equality_constraint in range(num_equality_constraints):
-            jacobian_constraints[equality_constraint] = jnp.array(
-                grad(equality_constraints[equality_constraint])(weights))
+            jacobian_constraints.at[equality_constraint].set(jnp.array(
+                grad(equality_constraints[equality_constraint])(weights)))
 
         return jacobian_constraints.T
 
     elif num_inequality_constraints:
         jacobian = jnp.zeros((num_inequality_constraints, num_weights))
         for inequality_constraint in range(num_inequality_constraints):
-            jacobian[inequality_constraint] = jnp.array(
-                grad(inequality_constraints[inequality_constraint])(weights))
+            jacobian.at[inequality_constraint].set(jnp.array(
+                grad(inequality_constraints[inequality_constraint])(weights)))
             jacobian_constraints = (
                 jnp.concatenate([jacobian.T,
                                  - jnp.eye(num_inequality_constraints)],
