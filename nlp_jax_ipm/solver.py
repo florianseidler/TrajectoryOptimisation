@@ -78,6 +78,7 @@ def solve(cost_function, equality_constraints, inequality_constraints,
             # if True break from inner loop
             barrier_tolerance = jit(jnp.max)(jnp.array(
                 [kkt_tolerance, barrier_val]))
+            # check_convergence() TODO (nice to have)
             if all([kkt_norm(kkt_weights) <= barrier_tolerance,
                     kkt_norm(kkt_slacks) <= barrier_tolerance,
                     kkt_norm(kkt_equality_lagrange_multipliers)
