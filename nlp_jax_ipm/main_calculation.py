@@ -83,6 +83,7 @@ def main_calculation(outer_iteration_variable, inner_iteration_variable,
             barrier_gradient = (
                 jnp.concatenate([grad(cost_function)(weights),
                                  - barrier_val / (slacks + minimal_step)]))
+
         else:
             barrier_gradient = jit(grad(cost_function))(weights)
 
@@ -97,13 +98,16 @@ def main_calculation(outer_iteration_variable, inner_iteration_variable,
                                         inequality_constraints,
                                         num_equality_constraints,
                                         num_inequality_constraints))))
+
         merit_threshold = (direction_gradient /
                            (1 - update_factor_merit_function_parameter)
                            / sum_weights_slacks)
+
         if merit_function_initialization_parameter < merit_threshold:
             merit_function_initialization_parameter = jit(jnp.float32)(
                 merit_threshold)
             merit_function_parameter = merit_function_initialization_parameter
+
     if num_inequality_constraints:
         # use fraction-to-the-boundary rule to make sure slacks
         # and multipliers do not decrease too quickly
@@ -113,6 +117,7 @@ def main_calculation(outer_iteration_variable, inner_iteration_variable,
                                                + num_inequality_constraints)],
                  weight_precision_tolerance,
                  backtracking_line_search_parameter))
+
         alpha_lmax = (
             step(lagrange_multipliers[num_equality_constraints:],
                  search_direction[(num_weights + num_inequality_constraints
@@ -132,6 +137,7 @@ def main_calculation(outer_iteration_variable, inner_iteration_variable,
                 inequality_constraints, num_equality_constraints,
                 num_inequality_constraints, verbosity,
                 backtracking_line_search_parameter, armijo_val))
+
     else:
         # use a backtracking line search to update weights,
         # slacks, and multipliers
