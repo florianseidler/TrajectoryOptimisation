@@ -143,14 +143,16 @@ def backtracking_line_search(cost_function, weights_0, slacks_0,
 
     else:
         # step search for only equality constraints or unconstrained problems
-        merit_comp_val = merit_function(
+        merit_comp_val = -merit_function(
             cost_function,
             weights_0 + alpha_smax * search_direction_weights,
             slacks_0, merit_function_parameter, barrier_val,
             equality_constraints, inequality_constraints,
             num_equality_constraints, num_inequality_constraints)
-        precision_val = (merit_function_result + alpha_smax
-                         * armijo_val * gradient_merit_function_result)
+
+        precision_val = -(merit_function_result + alpha_smax
+                          * armijo_val * gradient_merit_function_result)
+
         if merit_comp_val > precision_val:
             if num_equality_constraints:
                 # second-order correction
@@ -251,7 +253,7 @@ def setup_search(cost_function, weights_0, slacks_0, merit_function_parameter,
     correction
     """
 
-    weights = weights_0  # no copy
+    weights = weights_0  
     slacks = slacks_0
     merit_function_result = (
         merit_function(cost_function, weights_0, slacks_0,
