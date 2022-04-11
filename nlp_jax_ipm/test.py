@@ -16,7 +16,7 @@ Adjust prob to test different cases:
 10:minimize with inequality-constraints
 """
 
-prob = 10
+prob = 5
 
 if prob == 1:
 
@@ -27,8 +27,6 @@ if prob == 1:
         return jnp.asarray(weights[0]**2 + weights[1]**2 - 1)
 
     number_weights = 2
-    number_equality_constraints = 1
-    number_inequality_constraints = 0
     equality_constraints = [equality_constr_1]
     inequality_constraints = []
     weights = jnp.array([1., 2.])
@@ -36,6 +34,12 @@ if prob == 1:
     lagrange_multipliers = jnp.array([1.])
 
     print('maximize f(x, y) = x + y subject to x**2 + y**2 = 1')
+
+    (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
+     kkt_slacks, kkt_equality_lagrange_multipliers,
+     kkt_inequality_lagrange_multipliers) = (
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers))
 
 if prob == 2:
 
@@ -65,6 +69,12 @@ if prob == 2:
 
     print('minimize f(x, y) = x**2 + 2*y**2 + 2*x + 8*y '
           'subject to -x - 2*y + 10 <= 0, x >= 0, y >= 0')
+
+    (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
+     kkt_slacks, kkt_equality_lagrange_multipliers,
+     kkt_inequality_lagrange_multipliers) = (
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers))
 
 if prob == 3:
 
@@ -99,8 +109,6 @@ if prob == 3:
         return jnp.asarray(weights[5])
 
     number_weights = 6
-    number_equality_constraints = 1
-    number_inequality_constraints = 6
     equality_constraints = [equality_constr_1]
     inequality_constraints = [inequality_constraints_1,
                               inequality_constraints_2,
@@ -116,6 +124,14 @@ if prob == 3:
     print('maximize f(x) = -sum(x*log(x)) subject to sum(x) = 1 '
           'and x >= 0 (x.size == 6)')
 
+    (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
+     kkt_slacks, kkt_equality_lagrange_multipliers,
+     kkt_inequality_lagrange_multipliers) = (
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers,
+              num_inner_iterations=20, num_outer_iterations=10,
+              kkt_tolerance=1.0E-4, approximate_hessian=1))
+
 if prob == 4:
 
     def cost_function(weights):
@@ -124,8 +140,6 @@ if prob == 4:
                            - (weights[0] * weights[1]))
 
     number_weights = 2
-    number_equality_constraints = 0
-    number_inequality_constraints = 0
     equality_constraints = []
     inequality_constraints = []
     weights = jnp.array([1., 2.])
@@ -134,6 +148,12 @@ if prob == 4:
 
     print('minimize f(x, y) = x**2 - 4*x + y**2 - y - x*y')
 
+    (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
+     kkt_slacks, kkt_equality_lagrange_multipliers,
+     kkt_inequality_lagrange_multipliers) = (
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers))
+
 if prob == 5:
 
     def cost_function(weights):
@@ -141,8 +161,6 @@ if prob == 5:
                            + (1 - weights[0]) ** 2)
 
     number_weights = 2
-    number_equality_constraints = 0
-    number_inequality_constraints = 0
     equality_constraints = []
     inequality_constraints = []
     key = random.PRNGKey(1702)
@@ -151,6 +169,12 @@ if prob == 5:
     lagrange_multipliers = None
 
     print('minimize f(x, y) = 100*(y - x**2)**2 + (1 - x)**2')
+
+    (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
+     kkt_slacks, kkt_equality_lagrange_multipliers,
+     kkt_inequality_lagrange_multipliers) = (
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers))
 
 if prob == 6:
 
@@ -166,8 +190,6 @@ if prob == 6:
         return jnp.asarray(weights[2] - weights[0] ** 2)
 
     number_weights = 3
-    number_equality_constraints = 1
-    number_inequality_constraints = 1
     equality_constraints = [equality_constr_1]
     inequality_constraints = [inequality_constraints_1]
     key = random.PRNGKey(1702)
@@ -178,6 +200,14 @@ if prob == 6:
     print('minimize f(x, y, z) = (x - 1)**2 + 2*(y + 2)**2 + 3*(z + 3)**2 '
           'subject to z - y - x = 1, z - x**2 >= 0')
 
+    (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
+     kkt_slacks, kkt_equality_lagrange_multipliers,
+     kkt_inequality_lagrange_multipliers) = (
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers,
+              num_inner_iterations=8, num_outer_iterations=5,
+              kkt_tolerance=1.0E-4))
+
 if prob == 7:
 
     def cost_function(weights):
@@ -187,8 +217,6 @@ if prob == 7:
         return jnp.asarray(weights[1] ** 2 + weights[0] ** 2 - 3.0)
 
     number_weights = 2
-    number_equality_constraints = 1
-    number_inequality_constraints = 0
     equality_constraints = [equality_constr_1]
     inequality_constraints = []
     key = random.PRNGKey(1702)
@@ -197,6 +225,12 @@ if prob == 7:
     lagrange_multipliers = jnp.array([1.0])
 
     print('maximize f(x, y) = -(x**2)*y subject to x**2 + y**2 = 3')
+
+    (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
+     kkt_slacks, kkt_equality_lagrange_multipliers,
+     kkt_inequality_lagrange_multipliers) = (
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers))
 
 if prob == 8:
 
@@ -216,8 +250,6 @@ if prob == 8:
         return jnp.asarray(weights[2])
 
     number_weights = 3
-    number_equality_constraints = 1
-    number_inequality_constraints = 3
     equality_constraints = [equality_constr_1]
     inequality_constraints = [inequality_constraints_1,
                               inequality_constraints_2,
@@ -229,6 +261,12 @@ if prob == 8:
 
     print('maximize f(x, y, z) = x*y*z subject to '
           'x + y + z = 1, x >= 0, y >= 0, z >= 0')
+
+    (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
+     kkt_slacks, kkt_equality_lagrange_multipliers,
+     kkt_inequality_lagrange_multipliers) = (
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers))
 
 if prob == 9:
 
@@ -242,8 +280,6 @@ if prob == 9:
         return jnp.asarray(weights[0]**2 + weights[1]**2 - 1.)
 
     number_weights = 3
-    number_equality_constraints = 2
-    number_inequality_constraints = 0
     equality_constraints = [equality_constr_1, equality_constr_2]
     inequality_constraints = []
     weights = jnp.array([1., 2., 3.])
@@ -252,6 +288,12 @@ if prob == 9:
 
     print('minimize f(x,y,z) = 4*y - 2*z subject to 2*x - y - z = 2, '
           'x**2 + y**2 = 1')
+
+    (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
+     kkt_slacks, kkt_equality_lagrange_multipliers,
+     kkt_inequality_lagrange_multipliers) = (
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers))
 
 if prob == 10:
 
@@ -265,8 +307,6 @@ if prob == 10:
         return weights[0] - weights[1]
 
     number_weights = 2
-    number_equality_constraints = 0
-    number_inequality_constraints = 2
     equality_constraints = []
     inequality_constraints = [inequality_constraints_1,
                               inequality_constraints_2]
@@ -277,11 +317,12 @@ if prob == 10:
     print('minimize f(x, y) = (x - 2)**2 + 2*(y - 1)**2 '
           'subject to x + 4*y <= 3, x >= y')
 
-(weights, slacks, lagrange_multipliers, function_values, kkt_weights,
- kkt_slacks, kkt_equality_lagrange_multipliers,
- kkt_inequality_lagrange_multipliers) = (
-    solve(cost_function, equality_constraints,
-          inequality_constraints, weights, slacks, lagrange_multipliers))
+    (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
+     kkt_slacks, kkt_equality_lagrange_multipliers,
+     kkt_inequality_lagrange_multipliers) = (
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers))
+
 
 if prob == 1:
     print('Ground Truth: [0.7071 0.7071]')
