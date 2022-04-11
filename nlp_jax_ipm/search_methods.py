@@ -2,6 +2,7 @@ import jax.numpy as jnp
 from merit_function import merit_function
 from step import step
 from jacobian_calculation import jacobian_of_constraints
+from jax import jit
 
 
 def decrease_infeasibility(weights, num_weights, equality_constraints,
@@ -55,7 +56,7 @@ def decrease_infeasibility(weights, num_weights, equality_constraints,
     try:
         correction_new = correction_new.reshape((
             num_weights + num_inequality_constraints, 1))
-        feasibility_restoration_direction = - jnp.linalg.solve(
+        feasibility_restoration_direction = - jit(jnp.linalg.solve)(
             jacobian_matrix_of_constraints, correction_new)
         feasibility_restoration_direction = (
             feasibility_restoration_direction.reshape((
@@ -64,8 +65,8 @@ def decrease_infeasibility(weights, num_weights, equality_constraints,
     except:
         # if Jacobian is not invertible, find the minimum norm solution instead
         feasibility_restoration_direction = (
-            - jnp.linalg.lstsq(jacobian_matrix_of_constraints, correction_new,
-                               rcond=None)[0])
+            - jit(jnp.linalg.lstsq)(jacobian_matrix_of_constraints,
+                                    correction_new, rcond=None)[0])
     if num_inequality_constraints:
         merit_weights = (weights_0 + alpha_smax * search_direction_weights
                          + feasibility_restoration_direction[:num_weights])
@@ -152,12 +153,14 @@ def update_alphas(weights_0, slacks_0, alpha_smax,
 
         # backtracking line search
         if num_inequality_constraints:
-            search_step = (jnp.sqrt(jnp.linalg.norm
-                                    (alpha_smax * search_direction_weights) ** 2
-                           + jnp.linalg.norm(alpha_lmax
-                                             * search_direction_slacks) ** 2))
+            search_step = jit(jnp.sqrt)(jit(jnp.linalg.norm)
+                                        (alpha_smax * search_direction_weights)
+                                        ** 2
+                                        + jnp.linalg.norm(alpha_lmax
+                                        * search_direction_slacks) ** 2)
         else:
-            search_step = jnp.linalg.norm(alpha_smax * search_direction_weights)
+            search_step = jit(jnp.linalg.norm)(alpha_smax *
+                                               search_direction_weights)
         if search_step < minimal_step:
             # search direction is unreliable to machine precision,
             # stop solver
