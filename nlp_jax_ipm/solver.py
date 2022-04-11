@@ -12,7 +12,9 @@ Based on pyipm.py by Joel Kaardal. Usage can be seen in test.py.
 
 def solve(cost_function, equality_constraints, inequality_constraints,
           input_weights=None, input_slacks=None,
-          input_lagrange_multipliers=None):
+          input_lagrange_multipliers=None, num_inner_iterations=20,
+          num_outer_iterations=10, kkt_tolerance=1.0E-4, approximate_hessian=0,
+          verbosity=1):
     """
     Outer loop for adjusting the barrier parameter.
     Inner loop for finding a feasible minimum using backtracking line search.
@@ -26,6 +28,12 @@ def solve(cost_function, equality_constraints, inequality_constraints,
     input_slacks: input slacks for faster convergence (optional).
     input_lagrange_multipliers: input lagrange multipliers for faster
                                 convergence (optional).
+    num_inner_iterations: Number of iterations through inner loop.
+    num_outer_iterations: Number of iterations through outer loop.
+    kkt_tolerance: To check if the kkt-condtitions are satisfied.
+    approximate_hessian: To use an approximated hessian instead of the real one.
+    verbosity: For info while executing the program.
+
 
     Returns
     -------
@@ -39,13 +47,12 @@ def solve(cost_function, equality_constraints, inequality_constraints,
     """
 
     ''' INITIALIZATION '''
-    (verbosity, backtracking_line_search_parameter, armijo_val,
+    (backtracking_line_search_parameter, armijo_val,
      weight_precision_tolerance, convergence_tolerance_cost_function, power_val,
      init_diagonal_shift_val, minimal_step, diagonal_shift_val,
-     kkt_tolerance, update_factor_merit_function_parameter,
+     update_factor_merit_function_parameter,
      merit_function_parameter, barrier_val,
-     merit_function_initialization_parameter, num_inner_iterations,
-     num_outer_iterations, objective_function, objective_function_with_barrier,
+     merit_function_initialization_parameter, objective_function, objective_function_with_barrier,
      weights, slacks, lagrange_multipliers, num_weights,
      num_inequality_constraints, num_equality_constraints, kkt_weights,
      kkt_slacks, kkt_equality_lagrange_multipliers,
@@ -55,7 +62,7 @@ def solve(cost_function, equality_constraints, inequality_constraints,
      optimization_return_signal) = (
         initialization(cost_function, equality_constraints,
                        inequality_constraints, input_weights, input_slacks,
-                       input_lagrange_multipliers))
+                       input_lagrange_multipliers, kkt_tolerance))
 
     ''' MAIN CALCULATIONS '''
 
@@ -108,7 +115,8 @@ def solve(cost_function, equality_constraints, inequality_constraints,
                                    merit_function_initialization_parameter,
                                    update_factor_merit_function_parameter,
                                    backtracking_line_search_parameter,
-                                   weight_precision_tolerance, minimal_step))
+                                   weight_precision_tolerance, minimal_step,
+                                   approximate_hessian))
 
             if all([convergence_tolerance_cost_function is not None,
                     not num_inequality_constraints,
@@ -157,6 +165,7 @@ def solve(cost_function, equality_constraints, inequality_constraints,
             # a bad search direction was chosen, terminating
             break
 
+        """        
         if num_outer_iterations >= num_inner_iterations - 1:
             optimization_return_signal = -1
             if verbosity > 0:
@@ -165,7 +174,7 @@ def solve(cost_function, equality_constraints, inequality_constraints,
                 else:
                     print('MAXIMUM ITERATIONS EXCEEDED')
             break
-
+        """
         if num_inequality_constraints:
             # update the barrier parameter, calculation: Nocedal & Wright 19.20
             update_value = (num_inequality_constraints
