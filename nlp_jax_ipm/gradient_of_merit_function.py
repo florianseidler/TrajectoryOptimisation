@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from jax import grad
+from jax import grad, jit
 
 from merit_function import sum_equality_values, sum_inequality_values
 
@@ -41,11 +41,11 @@ def gradient_merit_function(cost_function, weights, slacks, search_direction,
         inequality_sum = sum_inequality_values(
             inequality_constraints, weights, slacks, num_inequality_constraints)
 
-        gradient_merit = (jnp.dot(grad(cost_function)(weights),
+        gradient_merit = (jnp.dot(jit(grad(cost_function))(weights),
                           search_direction[:num_weights])
                           - merit_function_parameter
                           * (equality_sum + inequality_sum)
-                          - jnp.dot(barrier_val / (slacks + minimal_step),
+                          - jit(jnp.dot)(barrier_val / (slacks + minimal_step),
                           search_direction[num_weights:]))
         return gradient_merit
 
@@ -54,7 +54,7 @@ def gradient_merit_function(cost_function, weights, slacks, search_direction,
         equality_sum = sum_equality_values(
             equality_constraints, weights, num_equality_constraints)
 
-        gradient_merit = (jnp.dot(grad(cost_function)(weights),
+        gradient_merit = (jnp.dot(jit(grad(cost_function))(weights),
                           search_direction[:num_weights])
                           - merit_function_parameter * equality_sum)
         return gradient_merit
@@ -63,14 +63,14 @@ def gradient_merit_function(cost_function, weights, slacks, search_direction,
 
         inequality_sum = sum_inequality_values(
             inequality_constraints, weights, slacks, num_inequality_constraints)
-        gradient_merit = (jnp.dot(grad(cost_function)(weights),
+        gradient_merit = (jnp.dot(jit(grad(cost_function))(weights),
                           search_direction[:num_weights])
                           - merit_function_parameter * inequality_sum
-                          - jnp.dot(barrier_val / (slacks + minimal_step),
+                          - jit(jnp.dot)(barrier_val / (slacks + minimal_step),
                           search_direction[num_weights:]))
         return gradient_merit
 
     else:
-        gradient_merit = jnp.dot(
+        gradient_merit = jit(jnp.dot)(
             grad(cost_function)(weights), search_direction[:num_weights])
         return gradient_merit
