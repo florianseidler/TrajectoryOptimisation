@@ -58,6 +58,51 @@ def hessian_approximation(obj_fct, weights, slacks, lagrange_multipliers):
     return approximated_hessian
 
 
+def hessian_real(obj_fct, weights, slacks, lagrange_multipliers,
+                          barrier_val):
+    """
+    Calculate hessian with approximation for the barrier term.
+
+    Parameters
+    ----------
+    obj_fct
+    weights
+    slacks
+    lagrange_multipliers
+    barrier_val
+
+    Returns
+    -------
+    real_hessian: Hessian-matrix
+    """
+
+    hessian_ = jit(hessian(obj_fct, [0, 1, 2]))(
+        weights, slacks, lagrange_multipliers, barrier_val)
+    upper_left = jnp.asarray(hessian_[0][0])
+    upper_right = jnp.asarray(hessian_[0][2])
+    lower_left = jnp.asarray(hessian_[2][0])
+    lower_right = jnp.asarray(hessian_[2][2])
+    if slacks is None:
+        upper_part = jnp.concatenate([upper_left, -upper_right], axis=1)
+        lower_part = jnp.concatenate([-lower_left, lower_right], axis=1)
+        real_hessian = jnp.concatenate([upper_part, lower_part], axis=0)
+    else:
+        middle = jnp.asarray(hessian_[1][1])
+        upper_middle = jnp.asarray(hessian_[0][1])
+        middle_right = jnp.asarray(hessian_[1][2])
+        lower_middle = jnp.asarray(hessian_[2][1])
+        upper_part = jnp.concatenate(
+            [upper_left, upper_middle, -upper_right], axis=1)
+        middle_left = jnp.asarray(hessian_[1][0])
+        middle_part = jnp.concatenate(
+            [middle_left, middle, -middle_right], axis=1)## change
+        lower_part = jnp.concatenate(
+            [-lower_left, -lower_middle, lower_right], axis=1)
+        real_hessian = jnp.concatenate(
+            [upper_part, middle_part, lower_part], axis=0)
+    return real_hessian
+
+
 def regularize_hessian(hessian_matrix, num_weights, num_equality_constraints=0,
                        num_inequality_constraints=0, diagonal_shift_val=0.0,
                        init_diagonal_shift_val=0.5, armijo_val=1.0E-4,
