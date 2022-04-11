@@ -19,7 +19,8 @@ def main_calculation(outer_iteration_variable, inner_iteration_variable,
                      merit_function_initialization_parameter,
                      update_factor_merit_function_parameter,
                      backtracking_line_search_parameter,
-                     weight_precision_tolerance, minimal_step):
+                     weight_precision_tolerance, minimal_step,
+                     approximate_hessian):
 
     """
     Computes search direction, updates merit function parameter and uses
@@ -53,6 +54,7 @@ def main_calculation(outer_iteration_variable, inner_iteration_variable,
     backtracking_line_search_parameter
     weight_precision_tolerance
     minimal_step
+    approximate_hessian
 
     Returns
     -------
@@ -75,13 +77,13 @@ def main_calculation(outer_iteration_variable, inner_iteration_variable,
                         weights, slacks, lagrange_multipliers, num_weights,
                         num_equality_constraints, num_inequality_constraints,
                         diagonal_shift_val, init_diagonal_shift_val, armijo_val,
-                        power_val, barrier_val))
+                        power_val, barrier_val, approximate_hessian))
 
     # update the merit function parameter, if necessary
     if num_inequality_constraints or num_equality_constraints:
         if num_inequality_constraints:
             barrier_gradient = (
-                jnp.concatenate([grad(cost_function)(weights),
+                jnp.concatenate([jit(grad(cost_function))(weights),
                                  - barrier_val / (slacks + minimal_step)]))
 
         else:
@@ -93,7 +95,7 @@ def main_calculation(outer_iteration_variable, inner_iteration_variable,
                 search_direction[:num_weights + num_inequality_constraints]))
 
         sum_weights_slacks = (
-            jnp.sum(jnp.abs(
+            jit(jnp.sum)(jnp.abs(
                 concatenate_constraints(weights, slacks, equality_constraints,
                                         inequality_constraints,
                                         num_equality_constraints,
