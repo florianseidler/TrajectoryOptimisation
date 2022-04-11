@@ -6,7 +6,7 @@ from jacobian_calculation import jacobian_of_constraints
 
 def initialization(cost_function, equality_constraints, inequality_constraints,
                    input_weights=None, input_slacks=None,
-                   input_lagrange_multipliers=None):
+                   input_lagrange_multipliers=None, kkt_tolerance=1.0E-4):
 
     """
 
@@ -18,10 +18,10 @@ def initialization(cost_function, equality_constraints, inequality_constraints,
     input_weights
     input_slacks
     input_lagrange_multipliers
+    kkt_tolerance
 
     Returns
     -------
-    verbosity
     backtracking_line_search_parameter
     armijo_val
     weight_precision_tolerance
@@ -30,13 +30,10 @@ def initialization(cost_function, equality_constraints, inequality_constraints,
     init_diagonal_shift_val
     minimal_step
     diagonal_shift_val
-    kkt_tolerance
     update_factor_merit_function_parameter
     merit_function_parameter
     barrier_val
     merit_function_initialization_parameter
-    num_inner_iterations
-    num_outer_iterations
     objective_function
     weights
     slacks
@@ -55,7 +52,6 @@ def initialization(cost_function, equality_constraints, inequality_constraints,
     """
 
     # tunable constants
-    verbosity = 1
     backtracking_line_search_parameter = 0.995
     armijo_val = 1.0E-4
     weight_precision_tolerance = jnp.finfo(jnp.float32).eps  # cannot be 0!
@@ -64,12 +60,9 @@ def initialization(cost_function, equality_constraints, inequality_constraints,
     init_diagonal_shift_val = 0.5
     minimal_step = jnp.finfo(jnp.float32).eps
     diagonal_shift_val = 0.0
-    kkt_tolerance = 1.0E-4
     update_factor_merit_function_parameter = 0.1
     merit_function_parameter = 10.0
     merit_function_initialization_parameter = jnp.float32(10.0)
-    num_inner_iterations = 20
-    num_outer_iterations = 10
 
     @jit
     def equality_constraints_fct(weights, lagrange_multipliers):
@@ -131,8 +124,8 @@ def initialization(cost_function, equality_constraints, inequality_constraints,
 
     if input_weights is None:
         key = random.PRNGKey(1702)
-        num_input_weights = jnp.size(input_weights)
-        weights = random.normal(key, shape=(num_input_weights,)
+        num_input_weights = jit(jnp.size)(input_weights)
+        weights = jit(random.normal)(key, shape=(num_input_weights,)
                                 ).astype(jnp.float32)
     else:
         weights = input_weights
@@ -214,13 +207,13 @@ def initialization(cost_function, equality_constraints, inequality_constraints,
     # init optimization return signal
     optimization_return_signal = 0
 
-    return (verbosity, backtracking_line_search_parameter, armijo_val,
+    return (backtracking_line_search_parameter, armijo_val,
             weight_precision_tolerance, convergence_tolerance_cost_function,
             power_val, init_diagonal_shift_val, minimal_step,
-            diagonal_shift_val, kkt_tolerance,
+            diagonal_shift_val,
             update_factor_merit_function_parameter, merit_function_parameter,
             barrier_val, merit_function_initialization_parameter,
-            num_inner_iterations, num_outer_iterations, objective_function,
+            objective_function,
             objective_function_with_barrier, weights, slacks,
             lagrange_multipliers, num_weights, num_inequality_constraints,
             num_equality_constraints, kkt_weights, kkt_slacks,
