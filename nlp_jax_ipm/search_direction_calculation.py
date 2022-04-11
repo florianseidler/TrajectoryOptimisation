@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 from jax import grad, jit
-from gradient_and_hessian import hessian_approximation, regularize_hessian
+from gradient_and_hessian import (hessian_approximation, hessian_real,
+                                  regularize_hessian)
 
 
 def calc_search_dir(objective_function, objective_function_with_barrier,
@@ -8,7 +9,7 @@ def calc_search_dir(objective_function, objective_function_with_barrier,
                     num_weights, num_equality_constraints,
                     num_inequality_constraints, diagonal_shift_val,
                     init_diagonal_shift_val, armijo_val, power_val,
-                    barrier_val):
+                    barrier_val, approximate_hessian):
 
     """
     Compute primal-dual direction (Nocedal & Wright 19.12)
@@ -41,11 +42,15 @@ def calc_search_dir(objective_function, objective_function_with_barrier,
         [gradient_weights, gradient_slacks, -gradient_lagrange_multipliers],
         axis=0)
 
-    hessian_approx = hessian_approximation(
-        objective_function, weights, slacks, lagrange_multipliers)
+    if approximate_hessian:
+        hessian_ = hessian_approximation(
+            objective_function, weights, slacks, lagrange_multipliers)
+    else:
+        hessian_ = hessian_real(objective_function_with_barrier, weights,
+                                slacks, lagrange_multipliers, barrier_val)
 
     hessian_regularized, diagonal_shift_val = (
-        regularize_hessian(hessian_approx, num_weights,
+        regularize_hessian(hessian_, num_weights,
                            num_equality_constraints, num_inequality_constraints,
                            diagonal_shift_val, init_diagonal_shift_val,
                            armijo_val, power_val, barrier_val))
