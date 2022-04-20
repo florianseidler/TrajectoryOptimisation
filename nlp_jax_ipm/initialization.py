@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from jax import grad, jit, random
-from KKT_calculations import KKT
-from jacobian_calculation import jacobian_of_constraints
+from .kkt_calculations import kkt
+from .jacobian_calculation import jacobian_of_constraints
 
 
 def initialization(cost_function, equality_constraints, inequality_constraints,
