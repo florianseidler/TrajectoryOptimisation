@@ -1,8 +1,8 @@
 import jax.numpy as jnp
-from merit_function import merit_function
-from gradient_of_merit_function import gradient_merit_function
-from search_methods import decrease_infeasibility, update_alphas
-from concatenate_constraints import concatenate_constraints
+from .merit_function import merit_function
+from .gradient_of_merit_function import gradient_merit_function
+from .search_methods import decrease_infeasibility, update_alphas
+from .concatenate_constraints import concatenate_constraints
 
 
 def backtracking_line_search(cost_function, weights_0, slacks_0,
