@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from jax import grad, jit
-from gradient_and_hessian import (hessian_approximation, hessian_real,
-                                  regularize_hessian)
+from .gradient_and_hessian import (hessian_approximation, hessian_real,
+                                   regularize_hessian)
 
 
 def calc_search_dir(objective_function, objective_function_with_barrier,
