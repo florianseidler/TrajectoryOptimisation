@@ -1,8 +1,8 @@
 import jax.numpy as jnp
-from merit_function import merit_function
-from step import step
-from jacobian_calculation import jacobian_of_constraints
 from jax import jit
+from .merit_function import merit_function
+from .step import step
+from .jacobian_calculation import jacobian_of_constraints
 
 
 def decrease_infeasibility(weights, num_weights, equality_constraints,
