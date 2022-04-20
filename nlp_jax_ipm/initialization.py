@@ -192,7 +192,7 @@ def initialization(cost_function, equality_constraints, inequality_constraints,
     # calculate the initial KKT conditions
     (kkt_weights, kkt_slacks, kkt_equality_lagrange_multipliers,
      kkt_inequality_lagrange_multipliers) = (
-        KKT(objective_function_with_barrier, weights, slacks,
+        kkt(objective_function_with_barrier, weights, slacks,
             lagrange_multipliers, num_inequality_constraints,
             num_equality_constraints, barrier_val))
 
