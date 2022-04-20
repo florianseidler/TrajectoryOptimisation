@@ -28,6 +28,8 @@ def calc_search_dir(objective_function, objective_function_with_barrier,
     armijo_val
     power_val
     barrier_val
+    approximate_hessian
+    
     Returns
     -------
     search_direction
