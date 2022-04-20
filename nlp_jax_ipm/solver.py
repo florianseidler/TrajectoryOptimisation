@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from jax import jit
-from initialization import initialization
-from main_calculation import main_calculation
+from .initialization import initialization
+from .main_calculation import main_calculation
 
 """
 Main function of the nonlinear problem solver. Interior Point Method
