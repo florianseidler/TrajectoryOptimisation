@@ -1,10 +1,10 @@
 import jax.numpy as jnp
 from jax import grad, jit
-from KKT_calculations import KKT
-from search_direction_calculation import calc_search_dir
-from concatenate_constraints import concatenate_constraints
-from search import backtracking_line_search
-from step import step
+from .kkt_calculations import kkt
+from .search_direction_calculation import calc_search_dir
+from .concatenate_constraints import concatenate_constraints
+from .search import backtracking_line_search
+from .step import step
 
 
 def main_calculation(outer_iteration_variable, inner_iteration_variable,
@@ -156,7 +156,7 @@ def main_calculation(outer_iteration_variable, inner_iteration_variable,
     # calculate the updated KKT conditions
     (kkt_weights, kkt_slacks, kkt_equality_lagrange_multipliers,
      kkt_inequality_lagrange_multipliers) = (
-        KKT(objective_function_with_barrier, weights, slacks,
+        kkt(objective_function_with_barrier, weights, slacks,
             lagrange_multipliers, num_inequality_constraints,
             num_equality_constraints, barrier_val))
 
