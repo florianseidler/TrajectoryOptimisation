@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from jax import grad, jit
 
-from merit_function import sum_equality_values, sum_inequality_values
+from .merit_function import sum_equality_values, sum_inequality_values
 
 
 def gradient_merit_function(cost_function, weights, slacks, search_direction,
