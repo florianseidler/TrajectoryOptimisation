@@ -2,7 +2,7 @@ import jax.numpy as jnp
 from jax import grad, jit
 
 
-def KKT(objective_function_with_barrier, weights, slacks, lagrange_multipliers,
+def kkt(objective_function_with_barrier, weights, slacks, lagrange_multipliers,
         num_inequality_constraints, num_equality_constraints, barrier_val):
     """
     Calculate the first-order Karush-Kuhn-Tucker conditions. Irrelevant
