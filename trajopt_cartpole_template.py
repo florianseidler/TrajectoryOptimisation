@@ -3,6 +3,13 @@ from jax import random
 from nlp_jax_ipm import solve
 
 
+# constants
+cart_mass = 1
+pole_mass = 2
+gravity = 3
+pole_length = 4
+
+
 def acceleration(control, angle, angle_speed):
     # from dynamics
     return ((1.0 / (cart_mass + pole_mass
@@ -21,12 +28,8 @@ def angle_acceleration(control, angle, angle_speed):
             * jnp.sin(angle) * angle_speed ** 2)))
 
 
-def control_cost_function(control):
-    num_knots = jnp.size(control) - 1
-    control_sum = 0
-    for iter in range(num_knots):
-        control_sum += 0.5 * timestep * (control[iter] ** 2 + control[iter + 1] ** 2)
-    return control_sum
+# define cost function
+# end of cost function
 
 
 # trapezoidal constraints
@@ -41,16 +44,23 @@ def control_cost_function(control):
 
 
 # weights, slacks, multipliers
-number_weights = num_knot_points * 5 - 8  # num_knot_points >! 2
-key = random.PRNGKey(1702)
-weights = random.normal(key, shape=(number_weights,)).astype(jnp.float32)
-slacks = random.normal(key, shape=(num_knot_points * 2,)).astype(jnp.float32)
-lagrange_multipliers = random.normal(key, shape=(num_knot_points - 1,)).astype(jnp.float32)
+
 
 # call solver
-
 (weights, slacks, lagrange_multipliers, function_values, kkt_weights,
  kkt_slacks, kkt_equality_lagrange_multipliers,
  kkt_inequality_lagrange_multipliers) = (
-        solve(control_cost_function, equality_constraints,
-              inequality_constraints, weights, slacks, lagrange_multipliers))
+        solve(cost_function, equality_constraints,
+              inequality_constraints, weights, slacks, lagrange_multipliers,
+              num_inner_iterations=8, num_outer_iterations=5))
+
+print('---------    APPROXIMATED RESULTS     ---------')
+print('Weights: ', weights)
+print('Slacks: ', slacks)
+print('lagrange_multipliers: ', lagrange_multipliers)
+print('function_values: ', function_values)
+print('kkt_weights', kkt_weights)
+print('kkt_slacks', kkt_slacks)
+print('kkt_equality_lagrange_multipliers', kkt_equality_lagrange_multipliers)
+print('kkt_inequality_lagrange_multipliers',
+      kkt_inequality_lagrange_multipliers)
