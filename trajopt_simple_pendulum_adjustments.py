@@ -29,17 +29,12 @@ adjust_parameter("trajopt_non_linear_problem.py", "angle_speed[0]", "angle_speed
 adjust_parameter("trajopt_non_linear_problem.py", "angle[" + str(num_knot_points - 1) + "]", "angle_end")
 adjust_parameter("trajopt_non_linear_problem.py", "angle_speed[" + str(num_knot_points - 1) + "]", "angle_speed_end")
 
-#weights = jnp.concatenate([position[1:-1], angle[1:-1], vecolcity[1:-1], angle_speed[1:-1], control, angle_accel])
-
 for k in range(0, num_knot_points - 2):
     adjust_parameter("trajopt_non_linear_problem.py", "angle[" + str(k + 1) + "]", "weights[" + str(k) + "]")
 for l in range(k + 1, num_knot_points - 1 + k):
     adjust_parameter("trajopt_non_linear_problem.py", "angle_speed[" + str(l - (k + 1) + 1) + "]", "weights[" + str(l) + "]")
 for m in range(l + 1, num_knot_points + l + 1):
     adjust_parameter("trajopt_non_linear_problem.py", "control[" + str(m - l - 1) + "]", "weights[" + str(m) + "]")
-
-
-#adjust_parameter("trapezoidal_collocation_constraints.py", "control", "weights")
 
 define_weights_slacks_lagrange_multipliers(num_knot_points, num_defined_values)
 
